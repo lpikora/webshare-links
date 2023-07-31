@@ -155,10 +155,14 @@ export default class Renderer {
   /**
    * Assemble markup for every item
    */
-  public createWebshareListItem(data: WebshareResult, list: HTMLUListElement): void {
+  public createWebshareListItem(
+    data: WebshareResult,
+    list: HTMLUListElement,
+    callback: (item: WebshareResult) => void
+  ): void {
     const item = document.createElement('li');
     const anchor = `
-          <a href="https://webshare.cz/#/file/${data.ident}">
+          <a href="#">
             <span class="attr">
               <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="13" height="10" viewBox="0 0 10 13">
                 <path d="M10.286 5.571v0.857c0 2.732-2.163 4.714-5.143 4.714s-5.143-1.982-5.143-4.714v-0.857c0-0.234 0.194-0.429 0.429-0.429h2.571c0.234 0 0.429 0.194 0.429 0.429v0.857c0 1.225 1.426 1.286 1.714 1.286s1.714-0.060 1.714-1.286v-0.857c0-0.234 0.194-0.429 0.429-0.429h2.571c0.234 0 0.429 0.194 0.429 0.429zM3.429 1.286v2.571c0 0.234-0.194 0.429-0.429 0.429h-2.571c-0.234 0-0.429-0.194-0.429-0.429v-2.571c0-0.234 0.194-0.429 0.429-0.429h2.571c0.234 0 0.429 0.194 0.429 0.429zM10.286 1.286v2.571c0 0.234-0.194 0.429-0.429 0.429h-2.571c-0.234 0-0.429-0.194-0.429-0.429v-2.571c0-0.234 0.194-0.429 0.429-0.429h2.571c0.234 0 0.429 0.194 0.429 0.429z"></path>
@@ -168,6 +172,10 @@ export default class Renderer {
           </a>`;
 
     item.innerHTML = anchor;
+    item.onclick = (ev: MouseEvent) => {
+      ev.preventDefault();
+      callback(data);
+    };
     list.appendChild(item);
   }
 

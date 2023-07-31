@@ -26,6 +26,7 @@ class CsfdMagnets {
   private altTitles: string[];
   private movieTitle: string;
   private wrapper: HTMLDivElement;
+  private webshareToken: string;
 
   constructor(
     private cleaner: Cleaner,
@@ -63,6 +64,8 @@ class CsfdMagnets {
       const filmTitle = this.getTitle();
 
       this.searchMovie(filmTitle);
+
+      this.loginWebshare();
     }
   }
 
@@ -156,11 +159,89 @@ class CsfdMagnets {
     );
   }
 
+  private getWebshareLink(item: WebshareResult): void {
+    chrome.runtime.sendMessage(
+      {
+        contentScriptQuery: 'linkWebshare',
+        ident: item.ident,
+        token: this.webshareToken
+      },
+      (response: string) => {
+        if (response) {
+          console.log(response);
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(response, 'text/xml');
+          const linkNode = doc.querySelector('link');
+
+          if (linkNode) {
+            console.log('link', linkNode.textContent);
+
+            navigator.clipboard.writeText(linkNode.textContent);
+
+            alert('Link was copied to your cliboard');
+          }
+        } else {
+          throw new Error("Can't connect to movie provider :(");
+        }
+      }
+    );
+  }
+
+  private loginWebshare(): void {
+    chrome.runtime.sendMessage(
+      {
+        contentScriptQuery: 'loginWebshareSalt',
+        email: 'xxx'
+      },
+      (response: string) => {
+        if (response) {
+          console.log(response);
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(response, 'text/xml');
+          const saltNode = doc.querySelector('salt');
+          if (saltNode) {
+            chrome.runtime.sendMessage(
+              {
+                contentScriptQuery: 'loginWebshare',
+                email: 'xxx',
+                password: 'xxx',
+                salt: saltNode.textContent
+              },
+              (response: string) => {
+                if (response) {
+                  console.log(response);
+                  const parser = new DOMParser();
+                  const doc = parser.parseFromString(response, 'text/xml');
+                  const tokenNode = doc.querySelector('token');
+                  if (tokenNode) {
+                    this.webshareToken = tokenNode.textContent;
+                    console.log('webshareToken', this.webshareToken);
+                  }
+                } else {
+                  throw new Error("Can't connect to movie provider :(");
+                }
+              }
+            );
+          }
+        } else {
+          this.removeLoader();
+          this.setNotFound();
+          throw new Error("Can't connect to movie provider :(");
+        }
+      }
+    );
+  }
+
   private handleWebshareItems(items: WebshareResult[]): void {
     const list = this.wrapper.getElementsByTagName('ul')[0];
 
+    const linkClickCallback = (item: WebshareResult) => {
+      console.log('clicked', item);
+      this.getWebshareLink(item);
+    };
+
     for (const item of items) {
-      this.renderer.createWebshareListItem(item, list);
+      this.renderer.createWebshareListItem(item, list, linkClickCallback);
     }
 
     // No items found
