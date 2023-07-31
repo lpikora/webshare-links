@@ -1,4 +1,4 @@
-import { CSFDFilmTypes } from '@interfaces/interfaces';
+import { CSFDFilmTypes, WebshareResult } from '@interfaces/interfaces';
 import { TPBResult } from 'piratebay-scraper/interfaces';
 import { searchUrl } from 'piratebay-scraper/vars';
 import Accent from './services/accent';
@@ -96,7 +96,7 @@ class CsfdMagnets {
       getAlternativeDomain(this.store.CSFDSiteDomain)
     );
     console.log(`CSFD MAGNETS ${isDev ? 'β' : ''}: Searching for '${this.movieTitle}'...`);
-    this.getItems(this.movieTitle);
+    this.getWebshareItems(this.movieTitle);
   }
 
   /**
@@ -124,6 +124,52 @@ class CsfdMagnets {
   }
 
   /**
+   * Fetch items
+   */
+  private getWebshareItems(searchQuery: string): void {
+    chrome.runtime.sendMessage(
+      {
+        contentScriptQuery: 'fetchWebshareData',
+        searchQuery
+      },
+      (response: string) => {
+        if (response) {
+          this.removeLoader();
+          console.log(response);
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(response, 'text/xml');
+          const fileNodes = doc.querySelectorAll('file');
+          const items: WebshareResult[] = [];
+          fileNodes.forEach((fileNode) => {
+            items.push({
+              title: fileNode.querySelector('name').textContent,
+              ident: fileNode.querySelector('ident').textContent
+            });
+          });
+          this.handleWebshareItems(items);
+        } else {
+          this.removeLoader();
+          this.setNotFound();
+          throw new Error("Can't connect to movie provider :(");
+        }
+      }
+    );
+  }
+
+  private handleWebshareItems(items: WebshareResult[]): void {
+    const list = this.wrapper.getElementsByTagName('ul')[0];
+
+    for (const item of items) {
+      this.renderer.createWebshareListItem(item, list);
+    }
+
+    // No items found
+    if (!items.length) {
+      this.noItemsFound();
+    }
+  }
+
+  /**
    * Parse and handle data for every loop
    */
   private handleItems(items: TPBResult[]): void {
@@ -135,17 +181,20 @@ class CsfdMagnets {
 
     // No items found
     if (!items.length) {
-      // Give me one more chance to find it for you!
-      const altTitle = this.altTitles[this.attempt];
-      if (altTitle) {
-        // Remove box and do it again
-        this.removeBox();
+      this.noItemsFound();
+    }
+  }
 
-        this.searchMovie(altTitle);
-        this.attempt++;
-      } else {
-        this.setNotFound();
-      }
+  private noItemsFound(): void {
+    const altTitle = this.altTitles[this.attempt];
+    if (altTitle) {
+      // Remove box and do it again
+      this.removeBox();
+
+      this.searchMovie(altTitle);
+      this.attempt++;
+    } else {
+      this.setNotFound();
     }
   }
 

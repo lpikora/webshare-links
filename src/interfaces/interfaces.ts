@@ -33,3 +33,8 @@ export type CSFDFilmTypes =
   | 'episode';
 
 export type CSFDSiteDomain = 'csfd.*' | 'filmbooster.*';
+
+export interface WebshareResult {
+  title: string;
+  ident: string;
+}
